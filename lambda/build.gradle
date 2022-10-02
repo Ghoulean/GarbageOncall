@@ -1,0 +1,126 @@
+plugins {
+    id 'java'
+    id 'jacoco'
+    id 'checkstyle'
+    // Pretty print test output
+    id 'com.adarshr.test-logger' version '3.1.0'
+    id 'maven-publish'
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // Apache Commons Lang
+    implementation 'org.apache.commons:commons-lang3:3.12.0'
+    // AWS SDK
+    implementation platform('software.amazon.awssdk:bom:2.17.284')
+    implementation platform('com.amazonaws:aws-java-sdk-bom:1.12.311')
+    implementation 'software.amazon.awssdk:dynamodb:2.17.284'
+    implementation 'software.amazon.awssdk:lambda:2.17.284'
+    implementation 'com.amazonaws:aws-lambda-java-core:1.2.1'
+    implementation 'com.amazonaws:aws-lambda-java-events:3.11.0'
+    // Discord4J
+    implementation 'com.discord4j:discord4j-core:3.2.3'
+    // gson
+    implementation 'com.google.code.gson:gson:2.9.1'
+    // logging
+    implementation 'org.apache.logging.log4j:log4j-api:2.19.0'
+    implementation 'org.apache.logging.log4j:log4j-core:2.19.0'
+    runtimeOnly 'org.apache.logging.log4j:log4j-slf4j18-impl:2.18.0'
+    runtimeOnly 'com.amazonaws:aws-lambda-java-log4j2:1.5.1'
+    // lombok
+	compileOnly 'org.projectlombok:lombok:1.18.24'
+	annotationProcessor 'org.projectlombok:lombok:1.18.24'
+	testCompileOnly 'org.projectlombok:lombok:1.18.24'
+	testAnnotationProcessor 'org.projectlombok:lombok:1.18.24'
+    // Dagger 2
+    implementation 'com.google.dagger:dagger:2.44'
+    annotationProcessor 'com.google.dagger:dagger-compiler:2.44'
+    // JUnit
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.6.0'
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.6.0'
+}
+
+version = '0.1.0'
+
+task fatJar(type: Jar) {
+    jar {
+        archivesBaseName = 'GarbageOncall'
+        archiveVersion = project.version
+        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+        manifest {
+            attributes('Implementation-Title': project.name,
+                    'Implementation-Version': project.version,
+                    'Main-Class': 'com.ghoulean.garbageoncall.lambda.OncallUpdateLambda')
+        }
+        from {
+            configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+        }
+        exclude 'META-INF/.RSA', 'META-INF/.SF','META-INF/*.DSA'
+    }
+}
+
+task buildZip(type: Zip) {
+    dependsOn fatJar
+    from compileJava
+    from processResources
+    into('lib') {
+        from configurations.runtimeClasspath
+    }
+}
+
+artifacts {
+    archives fatJar
+    archives buildZip
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_11
+    targetCompatibility = JavaVersion.VERSION_11
+}
+
+jacoco {
+    toolVersion = "0.8.8"
+    reportsDirectory = layout.buildDirectory.dir('jacoco')
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+    finalizedBy jacocoTestReport
+}
+
+tasks.named('jacocoTestReport') {
+    dependsOn test
+    enabled = false
+    reports {
+        html.required = true
+        xml.required = true
+        csv.required = false
+        html.outputLocation = layout.buildDirectory.dir('jacocoHtml')
+    }
+}
+
+tasks.named('jacocoTestCoverageVerification') {
+    violationRules {
+        failOnViolation = true
+        rule {
+            element = 'CLASS'
+            limit {
+                minimum = 0.80
+            }
+        }
+    }
+}
+
+checkstyle {
+    toolVersion '10.3.4'
+    ignoreFailures = false
+    maxErrors = 10
+    maxWarnings = 10
+}
+
+tasks.named("check") {
+    dependsOn jacocoTestCoverageVerification
+}
