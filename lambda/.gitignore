@@ -4,4 +4,4 @@
 # Ignore Gradle build output directory
 build
 bin
-/src/main/java/com/ghoulean/garbageoncall/dagger/components/RotationConfig.java
+src/main/java/com/ghoulean/garbageoncall/dagger/RotationConfig.java
